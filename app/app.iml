@@ -88,20 +88,20 @@
     </content>
     <orderEntry type="jdk" jdkName="Android API 22 Platform" jdkType="Android SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" exported="" name="hamcrest-core" level="project" />
+    <orderEntry type="library" exported="" name="stringtemplate" level="project" />
+    <orderEntry type="library" exported="" name="support-annotations-22.2.0" level="project" />
+    <orderEntry type="library" exported="" name="jansi" level="project" />
+    <orderEntry type="library" exported="" name="antlr" level="project" />
     <orderEntry type="library" exported="" name="junit" level="project" />
     <orderEntry type="library" exported="" name="commons-io-2.4" level="project" />
-    <orderEntry type="library" exported="" name="antlr" level="project" />
-    <orderEntry type="library" exported="" name="support-annotations-22.2.0" level="project" />
-    <orderEntry type="library" exported="" name="support-v4-22.2.0" level="project" />
-    <orderEntry type="library" exported="" name="javacc" level="project" />
-    <orderEntry type="library" exported="" name="commons-lang" level="project" />
-    <orderEntry type="library" exported="" name="jansi" level="project" />
-    <orderEntry type="library" exported="" name="appcompat-v7-22.2.0" level="project" />
-    <orderEntry type="library" exported="" name="stringtemplate" level="project" />
-    <orderEntry type="library" exported="" name="javax" level="project" />
-    <orderEntry type="library" exported="" name="commons-net-3.3" level="project" />
     <orderEntry type="library" exported="" name="jsr308-all" level="project" />
+    <orderEntry type="library" exported="" name="hamcrest-core" level="project" />
+    <orderEntry type="library" exported="" name="javax" level="project" />
+    <orderEntry type="library" exported="" name="support-v4-22.2.0" level="project" />
+    <orderEntry type="library" exported="" name="commons-lang" level="project" />
+    <orderEntry type="library" exported="" name="appcompat-v7-22.2.0" level="project" />
+    <orderEntry type="library" exported="" name="commons-net-3.3" level="project" />
+    <orderEntry type="library" exported="" name="javacc" level="project" />
     <orderEntry type="library" exported="" name="log4j" level="project" />
   </component>
 </module>
