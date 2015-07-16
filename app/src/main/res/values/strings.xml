@@ -1,0 +1,26 @@
+<resources>
+    <string name="app_name">FileClient</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="action_settings">Settings</string>
+    <string name="action_refresh" translatable="false">Refresh</string>
+    <string name="title_activity_detail">DetailActivity</string>
+
+
+    <string name="pref_ServerIP_label">ServerIP</string>
+    <string name="pref_ServerIP_key" translatable="false">ServerIP</string>
+    <string name="pref_ServerIP_default" translatable="false">130.83.218.241</string>
+
+    <string name="pref_port_label">Port</string>
+    <string name="pref_port_key" translatable="false">port</string>
+    <string name="pref_port_default" translatable="false">2021</string>
+
+    <string name="pref_username_label">Username</string>
+    <string name="pref_username_key" translatable="false">username</string>
+    <string name="pref_username_default" translatable="false">auditor</string>
+
+    <string name="pref_password_label">Password</string>
+    <string name="pref_password_key" translatable="false">password</string>
+    <string name="pref_password_default" translatable="false">password</string>
+
+
+</resources>

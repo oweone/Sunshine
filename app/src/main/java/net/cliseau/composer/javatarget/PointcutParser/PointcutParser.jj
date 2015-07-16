@@ -1,0 +1,509 @@
+/* Copyright (c) 2011-2012 Richard Gay <gay@mais.informatik.tu-darmstadt.de>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+ * of the Software, and to permit persons to whom the Software is furnished to do
+ * so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+options {
+  LOOKAHEAD = 1;
+  FORCE_LA_CHECK = true;
+  STATIC = false;
+}
+
+PARSER_BEGIN(PointcutParser)
+package net.cliseau.composer.javatarget.PointcutParser;
+
+import net.cliseau.composer.javatarget.PointcutParser.Pointcut;
+import net.cliseau.composer.javatarget.PointcutParser.PointcutSpec;
+
+/**
+ * Parser for pointcut declarations.
+ *
+ * Created with the javacc compiler generator, this is a class for parsing
+ * pointcut declarations. Essentially, the pointcut language follows the AspectJ
+ * grammar for pointcuts. The grammar essentially expects lists of pointcuts and
+ * import declarations. Particularly, in contrast to AspectJ, no advice and
+ * other configurations of aspects, or the aspect declaration itself are
+ * expected by the parser.
+ *
+ * The parser effectively ignores the pointcut expressions: it does not verify
+ * that the pointcut expressions are valid according to the AspectJ language. On
+ * the other hand, at some places our grammar is more restrictive than the
+ * AspectJ one, for example in that abstract pointcuts are not allowed here.
+ *
+ * @see PointcutSpec
+ * @see net.cliseau.composer.javatarget.AspectWeaver
+ */
+public class PointcutParser {
+
+}
+PARSER_END(PointcutParser)
+
+SKIP :
+{
+  " " | "\t" | "\n" | "\r"
+}
+
+/*==============================================================================
+ *  COMMENTS
+ *==============================================================================
+ */
+
+MORE :
+{
+  "//" : IN_SINGLE_LINE_COMMENT
+|
+  "/*" : IN_MULTI_LINE_COMMENT
+}
+<IN_SINGLE_LINE_COMMENT>
+SPECIAL_TOKEN :
+{
+  <SINGLE_LINE_COMMENT: "\n" | "\r" | "\r\n" > : DEFAULT
+}
+<IN_MULTI_LINE_COMMENT>
+SPECIAL_TOKEN :
+{
+  <MULTI_LINE_COMMENT: "*/" > : DEFAULT
+}
+<IN_SINGLE_LINE_COMMENT,IN_MULTI_LINE_COMMENT>
+MORE :
+{
+  < ~[] >
+}
+
+/*==============================================================================
+ *  TOKENS
+ *==============================================================================
+ */
+
+TOKEN :
+{
+  <DOT:          ".">
+| <COMMA:        ",">
+| <COLON:        ":">
+| <SEMICOLON:    ";">
+| <EXCMARK:      "!">
+| <LPARENTHESIS: "(">
+| <RPARENTHESIS: ")">
+| <LBRACKET:     "[">
+| <RBRACKET:     "]">
+| <GREATER:      ">">
+| <PLUS:         "+">
+| <STAR:         "*">
+| <AT:           "@">
+| <DOTDOT:       "..">
+| <ANDAND:       "&&">
+| <OROR:         "||">
+| <IMPORT:       "import">
+| <POINTCUT:     "pointcut">
+| <PUBLIC:       "public">
+| <PRIVATE:      "private">
+| <PROTECTED:    "protected">
+| <ABSTRACT:     "abstract">
+}
+
+/* The following right-hand non-terminal is not further specified;
+ * we just assume a rather standard definition, but should keep in mind
+ * that later fixes might be desirable (e.g., adding "_");
+ *
+ * Identifier := JavaIdentifierChar+
+ */
+TOKEN:
+{
+	< Identifier:         ["a"-"z","A"-"Z"] ( ["a"-"z","A"-"Z","0"-"9"] )* >
+}
+
+/* The following tokens are for string parsing and parenthesis matching in the
+ * "Java Expression" mode (which is used for parsing pointcut expressions).
+ */
+<IN_JAVA_EXPR> TOKEN:
+{
+	< NOTSTRINGNOTPAR: (~["(",")","\""]) >
+	// The specification of STRING has been taken from "Java1.1.jj" of the javacc examples.
+|	< STRING: "\"" (
+		(~["\"","\\","\n","\r"])
+		| ("\\"
+			( ["n","t","b","r","f","\\","'","\""]
+				| ["0"-"7"] ( ["0"-"7"] )?
+				| ["0"-"3"] ["0"-"7"] ["0"-"7"]
+			) ) )* "\"" >
+|	<XLPARENTHESIS: "(">
+|	<XRPARENTHESIS: ")">
+}
+
+/*==============================================================================
+ *  TYPE PATTERNS
+ *==============================================================================
+ */
+
+/**
+ * Parse a fully qualified (type) name.
+ *
+ * A fully qualified name is the nonterminal for Java type names, which may
+ * contain the dotted package path and the actual type name.
+ *
+ * <pre>   FullyQualifiedName ::= Identifier ('.'+ Identifier)*</pre>
+ *
+ * @return The parsed name as a string.
+ * @todo The current implementation allows spaces to occur within a fully
+ *       qualified name. If this is not OK, this function must be fixed.
+ * @todo The current implementation does not match the documented grammar as it
+ *       does not permit successive dots!
+ */
+String FullyQualifiedName() :
+{
+	Token t;
+	String s;
+}
+{
+	t=<Identifier>
+	{ s = t.image; }
+	(<DOT> t=<Identifier> { s = s + "." + t.image; } )*
+	{ return s; }
+}
+
+/*==============================================================================
+ *  JAVA EXPRESSIONS (or: correctly parenthesized expressions)
+ *==============================================================================
+ */
+
+/**
+ * Parse an approximation of a Java expression without parentheses.
+ *
+ * This parses a sequence of tokens which are strings or non-parenthesis
+ * characters outside of a string.
+ *
+ * <pre>
+ *   JavaExpressionNoPar := [^()"]* ( String [^()"]* )*
+ * </pre>
+ *
+ * @return The parsed data as a string
+ */
+String JavaExpressionNoPar() :
+{
+	StringBuffer sb = new StringBuffer();
+	Token t;
+}
+{
+	(t=<NOTSTRINGNOTPAR>    {sb.append(t.image);})*
+	(
+		t=<STRING>           {sb.append(t.image);}
+		(t=<NOTSTRINGNOTPAR> {sb.append(t.image);})*
+	)*
+	{ return sb.toString(); }
+}
+
+/**
+ * Parse an approximation of a Java expression.
+ *
+ * This is a very coarse approximation of Java expressions which only demands
+ * that the expression is correctly parenthesized and may contain strings (in
+ * which parentheses are not considered special). For parsing pointcuts this
+ * should suffice and precisely parsing the Java grammar would be overkill.
+ *
+ * We move the actual parsing out to JavaExpressionInt() and here only switch
+ * the token scanner to the IN_JAVA_EXPR state in which tokens are generated
+ * differently from the normal mode. In principle, such switches are quite
+ * fragile if the token scanner already has items in its lookahead buffer.
+ * There are some larger code portions in the Internet for how to resolve this
+ * issue in a safe way. Since the grammars here are not very complicated,
+ * however, a bit of guesswork helped as well to get the parsing work.
+ *
+ * <pre>
+ *   JavaExpression ::= JavaExpressionNoPar ( '(' JavaExpression ')' JavaExpressionNoPar )*
+ * </pre>
+ *
+ * @return The parsed data as a string
+ */
+String JavaExpression() :
+{
+	int lex_state;
+	String s;
+}
+{
+	{ lex_state = token_source.curLexState; token_source.SwitchTo(IN_JAVA_EXPR); }
+	s=JavaExpressionInt()
+	{ token_source.SwitchTo(lex_state); }
+	{ return s; }
+}
+
+/**
+ * Parse an approximation of a Java expressing, assuming tokenizer state IN_JAVA_EXPR.
+ *
+ * This parses the actual JavaExpression().
+ *
+ * @return The parsed data as a string
+ * @see #JavaExpression()
+ */
+String JavaExpressionInt () :
+{
+	StringBuffer sb = new StringBuffer();
+	String s;
+	Token t;
+}
+{
+	s=JavaExpressionNoPar()     { sb.append(s); }
+	(
+		t=<XLPARENTHESIS>        { sb.append(t.image); }
+		s=JavaExpressionInt()    { sb.append(s); }
+		t=<XRPARENTHESIS>        { sb.append(t.image); }
+		s=JavaExpressionNoPar()  { sb.append(s); }
+	)*
+	{ return sb.toString(); }
+}
+
+/*==============================================================================
+ *  IMPORT
+ *==============================================================================
+ */
+
+/**
+ * Parse an import declaration.
+ *
+ * An import declaration has the same grammar as regular Java import
+ * declarations.
+ * <pre>   Import ::= 'import' FullyQualifiedName</pre>
+ */
+String Import() : { String s; }
+{
+	<IMPORT>
+	s=FullyQualifiedName()
+	{ return s; }
+}
+
+/*==============================================================================
+ *  POINTCUTS
+ *==============================================================================
+ */
+
+/**
+ * Parse a parameter list.
+ *
+ * A parameter list is a comma-separated list of pairs of parameter type and
+ * parameter name.
+ *
+ * <pre>   ParamList ::= FullyQualifiedName Identifier (',' ParamList)*</pre>
+ *
+ * @param pc Pointcut object to which the parameters are added
+ */
+void ParamList(Pointcut pc) :
+{
+	Token t;
+	String ptype;
+}
+{
+	ptype=FullyQualifiedName()
+	t=<Identifier>
+	{ pc.addParameter(ptype,t.image); }
+	[ <COMMA> ParamList(pc) ]
+}
+
+/**
+ * Parse a list of pointcut modifiers.
+ *
+ * In contrast to the AspectJ grammar, we disallow "abstract" pointcuts here,
+ * since these do not comprise a pointcut expression.
+ * <pre>
+ *   PointcutModifiers ::= PointcutModifier*
+ *   PointcutModifier  ::= 'public' | 'private' | 'protected'
+ * </pre>
+ */
+void PointcutModifiers() : { }
+{
+	( <PUBLIC> | <PRIVATE> | <PROTECTED> )*
+}
+
+/**
+ * Parse a primitive pointcut expression.
+ *
+ * Here we really abbreviate from the original grammar, as we are not
+ * interested in the concrete conditions for the pointcut to hold, but
+ * rather only in the parameters of the pointcut which are given not in
+ * the PointcutPrimitive but in the ParamList of the PointcutDeclaration.
+ *
+ * The original AspectJ grammar below distinguishes the different possibilities
+ * for conditions on pointcuts:
+ * <pre>
+ *   PointcutPrimitive ::= Call | Execution | Get | Set | Handler
+ *                       | Initialization | PreInitialization
+ *                       | StaticInitialization | AdviceExecution
+ *                       | This | Target | Args | CFlow | CFlowBelow
+ *                       | Within | WithinCode | If | AnnotationPointcut
+ * </pre>
+ * We simplify the grammar as follows, since every pointcut condition starts
+ * with a word identifying its type and the conditions' details are Java
+ * expressions.
+ * <pre>
+ *   PointcutPrimitive ::= Identifier '(' JavaExpression ')'
+ * </pre>
+ *
+ * @return The string of the pointcut primitive.
+ */
+String PointcutPrimitive() :
+{
+	StringBuffer sb = new StringBuffer();
+	String s;
+	Token t;
+}
+{
+	t=<Identifier>      { sb.append(t.image); }
+	/* NOTE: due to the token scanner's lookahead buffer, we here use
+	 * XRPARENTHESIS for the closing parenthesis token, even though the scanner
+	 * has already been switched to the "normal" parsing mode at that point.
+	 * This is quite fragile and it's not clear, whether this works in all cases.
+	 * However, in all tested ones, it worked so far. */
+	t=<LPARENTHESIS>   { sb.append(t.image); }
+	s=JavaExpression()  { sb.append(s); }
+	t=<XRPARENTHESIS>   { sb.append(t.image); }
+	{ return sb.toString(); }
+}
+
+/**
+ * Parse a pointcut expression.
+ *
+ * This function parses pointcut expressions, which are Boolean combinations of
+ * PointcutPrimitive()s. It returns the whole expression as a string because we
+ * are not interested in the content of the pointcut expression. We only parse
+ * them in order to correctly identify the end of the pointcut declaration.
+ *
+ * In contrast to the original grammar for pointcut expressions (as shown
+ * below), we here do not allow reference pointcuts.
+ *
+ * <pre>
+ *   PointcutExpression ::= PointcutPrimitive
+ *                        | '!' PointcutExpression
+ *                        | '(' PointcutExpression ')'
+ *                        | PointcutExpression '&&' PointcutExpression
+ *                        | PointcutExpression '||' PointcutExpression
+ * </pre>
+ *
+ * @return The string of the full pointcut expression.
+ */
+String PointcutExpression() :
+{
+	StringBuffer sb = new StringBuffer();
+	String s;
+	Token t;
+}
+{
+	s=PointcutTerm()      { sb.append(s); }
+	(
+		(t=<ANDAND> | t=<OROR>) { sb.append(" " + t.image + " "); }
+		s=PointcutTerm()  { sb.append(s); }
+	)*
+	{ return sb.toString(); }
+}
+
+/**
+ * Parse a pointcut term.
+ *
+ * This is a helper for PointcutExpression.
+ * TODO: better documentation
+ *
+ * @return The string of the pointcut term.
+ */
+String PointcutTerm() :
+{
+	StringBuffer sb = new StringBuffer();
+	String s;
+	Token t;
+}
+{
+	(
+		s=PointcutPrimitive()      { sb.append(s); }
+		| (
+			t=<LPARENTHESIS>        { sb.append(t.image); }
+			s=PointcutExpression()  { sb.append(s); }
+			t=<RPARENTHESIS>        { sb.append(t.image); }
+			)
+		| (
+			t=<EXCMARK>             { sb.append(t.image); }
+			s=PointcutTerm()        { sb.append(s); }
+		)
+	)
+	{ return sb.toString(); }
+}
+
+/**
+ * Parse a single pointcut declaration.
+ *
+ * A pointcut declaration essentially determines
+ *  - a name (Identifier),
+ *  - the parameter list,
+ *  - the return type (this differs from the AspectJ grammar), and
+ *  - the pointcut expression.
+ *
+ * The definition of the "Formals" nonterminal differs from the original AspectJ
+ * language in that we add an optional possibility for giving a
+ * FullyQualifiedName() for the return type of the pointcut.
+ *
+ * <pre>
+ *   PointcutDeclaration ::= PointcutModifiers 'pointcut' Identifier Formals ':' PointcutExpression
+ *   Formals             ::= '(' ParamList? ('>' FullyQualifiedName )? ')'
+ * </pre>
+ *
+ * @return A Pointcut object corresponding to the parsed pointcut declaration.
+ */
+Pointcut PointcutDeclaration() :
+{
+	Token t;
+	String s;
+	Pointcut pc = new Pointcut();
+}
+{
+	PointcutModifiers()
+	<POINTCUT>
+	t=<Identifier>            { pc.setName(t.image); }
+	<LPARENTHESIS>
+	[ ParamList(pc) ]
+	[
+		<GREATER>
+		s=FullyQualifiedName() { pc.setReturnType(s); }
+	]
+	<RPARENTHESIS>
+	<COLON>
+	s=PointcutExpression()    { pc.setPointcutExpression(s); }
+	{ return pc; }
+}
+
+/**
+ * Parse a pointcut specification.
+ *
+ * A pointcut specification is a list of semicolon-separated
+ * PointcutDeclaration() and Import() declarations, as specified by the
+ * following grammar:
+ * <pre>   PointcutSpec ::= ((PointcutDeclaration | Import) ';')*</pre>
+ *
+ * @return A pointcut specification object representing the parsed data.
+ */
+PointcutSpec PointcutSpecification() :
+{
+	PointcutSpec pspec = new PointcutSpec();
+	Pointcut pc;
+	String imp;
+}
+{
+	(
+		pc=PointcutDeclaration()
+		{ pspec.addPointcut(pc); }
+		<SEMICOLON>
+	|	imp=Import()
+		{ pspec.addImport(imp); }
+		<SEMICOLON>
+	)*
+	{ return pspec; }
+}

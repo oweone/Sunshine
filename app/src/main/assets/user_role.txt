@@ -1,0 +1,2 @@
+auditor=role1
+auditor2=role2

@@ -1,0 +1,8 @@
+Here should go a version of Dominic Scheurer's datalog policy
+
+Probably the code should be taken from the following directories:
+ - implementation/Distributed Datalog Policies/Datalog for Service Automata (Distributed)/src/net/serviceautomata/datalog
+ - implementation/Distributed Datalog Policies/JGitDistributed/inst/net/serviceautomata/jgit/
+
+We also need a set of example instances for the FTP programs
+or even for JGit - but somewhere else.

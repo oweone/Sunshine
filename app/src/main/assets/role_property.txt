@@ -1,0 +1,2 @@
+role1=png1,jpg0
+role2=txt,png,jpg
